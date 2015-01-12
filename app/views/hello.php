@@ -5,7 +5,6 @@
 	<title>SQLOnline</title>
 	<style>
 		@import url(//fonts.googleapis.com/css?family=Lato:700);
-
 		body {
 			margin:0;
 			font-family:'Lato', sans-serif;
@@ -38,6 +37,11 @@
 
 <script>
 	var clients=[];
+	var changeHistory=[];
+	var myKey="";
+	var historyNumber=0;
+	var oldText;
+
 	(function($) {
 		$.fn.getCursorPosition = function() {
 			var input = this.get(0);
@@ -55,7 +59,9 @@
 			}
 		}
 	})(jQuery);
-	var oldText;
+
+
+
 	$( document ).ready(function() {
 
 		oldText= $("#sqlBox").text();
@@ -71,30 +77,40 @@
 
 			var newText=$("#sqlBox").val();
 			var diff = JsDiff["diffChars"](oldText,newText);
-			console.log(diff);
 
 
+			var patchOn=changeHistory[changeHistory.length-1];
 
 			oldText=newText;
 			var msg={
 				"type":"patch",
 				"patchs":diff,
-				"from":myKey
+				"from":myKey,
+				"nummber":historyNumber,
+				"patchOn":{
+					userId=patchOn.userId,
+					patchId=patchOn.patchId
+				}
+			};
+			var historyNote={
+				"patch":diff,
+				"userId":myKey,
+				"patchId":historyNumber
 			};
 
+			changeHistory.push(historyNote);
+
+
+			historyNumber=historyNumber+1;
 
 			clients.forEach(function(client){
 				client.send(JSON.stringify(msg));
 			});
 
-
 		};
 
-
-
-		var myKey=Math.floor((Math.random() * 1000) + 1);
+		myKey=Math.floor((Math.random() * 1000) + 1);
 		$("#myKey").html(myKey);
-
 
 
 		var peer = new Peer(myKey, {key: '9b406c3gm4jwcdi'});
@@ -132,8 +148,8 @@
 
 					connNewPeer.send(JSON.stringify(msg));
 					var msg={
-						"type":"totHistory",
-						"clients":listClients
+						"type":"fullHistory",
+						"history":changeHistory
 					};
 
 
@@ -143,8 +159,6 @@
 
 			}
 
-			console.log("clients");
-			console.log(clients);
 			conn.on('data', function(data){
 				console.log("get-data");
 				console.log("|"+data+"|");
@@ -160,18 +174,18 @@
 					function doPatch(patchs) {
 						var text = $("#sqlBox").val();
 						var whereInLine = 0;
-						var newText = "";
+						//var newText = "";
 						patchs.forEach(function (entry) {
 							console.log(entry);
 							if (entry.added) {
 								console.log("added");
-								newText += entry.value;
+						//		newText += entry.value;
 							} else if (entry.removed) {
 								console.log("removed");
 								whereInLine += entry.count
 							} else {
 								console.log("unchanges");
-								newText += entry.value;
+								//newText += entry.value;
 								whereInLine += entry.count
 							}
 
@@ -192,6 +206,13 @@
 							clients.push(connNewPeer);
 						}
 					});
+				}else if(obj.type=="fullHistory"){
+					history=obj.history;
+
+					function runHistory(){
+
+
+					}
 				}
 			});
 
@@ -235,9 +256,7 @@
 <body>
 	<H1>SQLOnline</H1>
 	<div id="holder">	<div type="text" id="myKey" ></div>  <input type="text" id="connectToKey"> <button type="button" id="connectToRTC">save</button></div>
-	<textarea id="sqlBox" rows="60" cols="200">
-		Enter your text here...
-	</textarea>
+	<textarea id="sqlBox" rows="60" cols="200"></textarea>
 
 </body>
 </html>
